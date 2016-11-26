@@ -1,6 +1,5 @@
 # coding:utf-8
 import cPickle
-import os
 import time
 from functools import wraps
 
@@ -11,18 +10,23 @@ from numpy import *
 
 DIMENSION = 40
 DATA_PATH = '..\\data\\raw\\'
-EACH_PIC_OF_SOURCE = 300
+EACH_PIC_OF_SOURCE = 150
 
 
 def log_wrapper(content):
+    """
+    a decorate to print content & process time
+    :param content:             string              a context to print
+    :return:
+    """
+
     def decorate(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             print content
             _ = time.time()
             result = func(*args, **kwargs)
-            # print time.time()-_
-            print 'Use %.2fs.' % (time.time() - _)
+            print 'Process time: %.2fs.' % (time.time() - _)
             return result
 
         return wrapper
@@ -46,6 +50,11 @@ class Eigenfaces(object):
 
     @log_wrapper('Start loading image...')
     def loadimags(self, path):
+        """
+        look for all image folder by folder
+        :param path:            string          the path of source images
+        :return:
+        """
         classlabel = 0
         for dirname, dirnames, filenames in os.walk(path):
             for subdirname in dirnames:
@@ -67,6 +76,11 @@ class Eigenfaces(object):
             self.Mat = np.vstack((self.Mat, np.asarray(row).reshape(1, -1)))
 
     def PCA(self, k=DIMENSION):
+        """
+        thr PCA algorithm
+        :param k:               int       the aim dimension to reduce
+        :return:
+        """
         self.genRowMatrix()
         [n, d] = shape(self.Mat)
         if k > n:
@@ -114,8 +128,11 @@ class Eigenfaces(object):
             plt.xticks([]), plt.yticks([])
         plt.show()
 
-    # @log_wrapper('Start predict...')
     def predict(self, XI):
+        """
+        :param XI:          PIL.Image       the image to predict
+        :return:            string          the name of image which is predicted
+        """
         minDist = np.finfo('float').max
         minClass = -1
         Q = self.project(XI.reshape(1, -1))
@@ -129,23 +146,39 @@ class Eigenfaces(object):
 
 @log_wrapper('Start dump...')
 def save_instance(instance, path=r"..\data\trained"):
-    np.savez(path + r'\mist', instance.Mat, instance.eig_v, instance.eig_vect, instance.mu)
-    np.savez(path + r'\X', [i for i in instance.X])
-    np.savez(path + r'\projections', [i for i in instance.projections])
-    cPickle.dump(instance.y, open(path + r'\y.plk', "wb"))
+    """
+    to dump the result
+    :param instance:        Eigenfaces      a Eigenfaces object to dump
+    :param path:            string          the dumped data path
+    :return:
+    """
+    np.savez(os.path.join(path, 'mist'), instance.Mat, instance.eig_v, instance.eig_vect, instance.mu)
+    np.savez(os.path.join(path, 'X'), [i for i in instance.X])
+    np.savez(os.path.join(path, 'projections'), [i for i in instance.projections])
+    cPickle.dump(instance.y, open(os.path.join(path, 'y.plk'), "wb"))
 
 
 def load_instance(path=r"..\data\trained"):
+    """
+    to load the result
+    :param path:             string          the dumped data path
+    :return:                Eigenfaces
+    """
     _ = Eigenfaces()
-    _.y = cPickle.load(open(path + r'\y.plk', "rb"))
-    mist = np.load(path + r'\mist.npz')
+    _.y = cPickle.load(open(os.path.join(path, 'y.plk'), "rb"))
+    mist = np.load(os.path.join(path, 'mist.npz'))
     _.Mat, _.eig_v, _.eig_vect, _.mu = mist['arr_0'], mist['arr_1'], mist['arr_2'], mist['arr_3']
-    _.X = np.load(path + r'\X.npz')['arr_0']
-    _.projections = np.load(path + r'\projections.npz')['arr_0']
+    _.X = np.load(os.path.join(path, 'X.npz'))['arr_0']
+    _.projections = np.load(os.path.join(path, 'projections.npz'))['arr_0']
     return _
 
 
 def display(ef):
+    """
+    display the eigen face
+    :param ef:              Eigenfaces          a Eigenfaces objects had trained
+    :return:
+    """
     E = []
     X = mat(zeros((10, 10304)))
     for i in xrange(16):
@@ -154,19 +187,23 @@ def display(ef):
         imgs = X.reshape(200, 200)
         E.append(imgs)
 
-    ef.subplot(title="AT&T Eigen Facedatabase", images=E)
+    ef.subplot(title="My Eigen Facedatabase", images=E)
 
 
 def train():
+    """
+    train and display
+    :return:                Eigenfaces          a Eigenfaces objects
+    """
     ef = Eigenfaces()
-    ef.dist_metric = ef.distEclud
-
     ef.loadimags(DATA_PATH)
     ef.compute()
 
     save_instance(ef)
-    display(ef)
+
+    return ef
 
 
 if __name__ == '__main__':
-    train()
+    ef = train()
+    display(ef)

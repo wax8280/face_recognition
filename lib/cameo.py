@@ -1,5 +1,4 @@
 # coding:utf-8
-
 import os
 import time
 from collections import Counter
@@ -14,12 +13,13 @@ DATA_PATH = r'..\data\raw'
 
 
 class CaptureManager(object):
-    """
-
-    """
-
     def __init__(self, capture, previewWindowManager=None, shouldMirrorPreview=False):
-        # 绘制窗口，bool
+        """
+        :param capture:                                         a cv2.VideoCapture object
+        :param previewWindowManager:        WindowManager       the windows
+        :param shouldMirrorPreview:         Bool                is reversal the frame?
+        :return:
+        """
         self.previewWindowManager = previewWindowManager
         # 镜像旋转（在窗口中问不是在文件中），bool
         self.shouldMirrorPreview = shouldMirrorPreview
@@ -27,13 +27,13 @@ class CaptureManager(object):
         self._enteredFrame = False
         self._frame = None
         self._startTime = None
-        # 从开始到现在帧数
+        # count of frame from begin to now
         self._framesElapsed = long(0)
-        # OpenCV没办法获取FPS，如果需要可以用time.time()计算
+        # OpenCV cant get FPS，if need we can use time.time() to cal
         self._fpsEstimate = None
 
     def __enter__(self):
-        """捕获下一帧，如果有的话"""
+        """get next frame,if exist """
         assert not self._enteredFrame, \
             'previous enterFrame() had no matching exitFrame()'
         if self._capture is not None:
@@ -44,7 +44,7 @@ class CaptureManager(object):
             self._enteredFrame = False
             return
 
-        # 释放
+        # release
         self._frame = None
         self._enteredFrame = False
 
@@ -57,7 +57,7 @@ class CaptureManager(object):
             else:
                 _, self._frame = self._capture.retrieve()
 
-        # 获取FPS
+        # get FPS
         if self._framesElapsed == 0:
             self._startTime = time.time()
         else:
@@ -68,7 +68,6 @@ class CaptureManager(object):
         return self._frame
 
     def draw_windows(self):
-        # 绘制窗口
         if self.previewWindowManager is not None:
             if self.shouldMirrorPreview:
                 mirroredFrame = numpy.fliplr(self._frame).copy()
@@ -115,56 +114,57 @@ class Dector(object):
         self._ef = load_instance()
         self._predict_result = []
         self._mode = mode
+        self.count_to_print = 10
 
         self._people_name = people_name
 
-        # 建立文件夹
+        # make dir if not exit
         if self._people_name:
             if not os.path.exists(os.path.join(DATA_PATH, self._people_name)):
                 os.mkdir(os.path.join(DATA_PATH, self._people_name))
 
-    def face_recoginze(self, image):
-        if len(self._predict_result) > 10:
+    def print_result(self):
+        """
+        print the result
+        :return:
+        """
+        if len(self._predict_result) > self.count_to_print:
             most = Counter(self._predict_result).most_common(1)
             print 'Is {} !!!'.format(str(most[0][0]))
             print 'Presentage: %.4f' % (float(most[0][1]) / len(self._predict_result) * 100) + '%'
             self._predict_result = []
 
+    def face_recoginze(self, image):
+        """
+        face_recoginze
+        :param image:               IMAGE           a image object to predict
+        :return:
+        """
         return self._ef.predict(image)
 
     def face_solution(self, frame, mode='rec'):
         """
-        人脸识别
-        :param frame:           原始帧
-        :param mode:     采集或识别
+        face detect & recogize or collect
+        :param frame:               a               a source frame
+        :param mode:                string          a string that set func to collect mode or recoginze mode
         :return:
         """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = Dector.face_cascade.detectMultiScale(gray, 1.3, 5)
         for (x, y, w, h) in faces:
             img = cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-
             f = cv2.resize(gray[y:y + h, x:x + w], (200, 200))
 
             if mode == 'rec':
                 self._predict_result.append(self.face_recoginze(f))
-            else:
+            elif mode == 'col':
                 PATH_ = os.path.join(os.path.join(DATA_PATH, self._people_name), '%s.pgm' % str(time.time()))
                 print PATH_
                 cv2.imwrite(PATH_, f)
-
-                # 以下为人眼检测
-                # roi_gray = gray[y:y + h, x:x + w]
-                # roi_color = img[y:y + h, x:x + w]
-
-                # eyes = Dector.eye_cascade.detectMultiScale(roi_gray, 1.3, 6, 0, (40, 40))
-                #
-                # for (ex, ey, ew, eh) in eyes:
-                #     cv2.rectangle(roi_color, (ex, ey), (ex + ew, ey + eh), (255, 255, 255), 2)
         return frame
 
     def run(self):
-        """开始循环"""
+        """begin loop"""
         self._windowManager.createWindow()
         particle_face_detect = partial(self.face_solution, mode=self._mode)
 
@@ -174,14 +174,16 @@ class Dector(object):
                 self._captureManager.draw_windows()
             self._windowManager.processEvents()
 
+            self.print_result()
+
     def onKeypress(self, keycode):
         """
-        处理案件
-        escape -> 退出
+        handle pressed key
+        escape -> exit
         """
         if keycode == 27:  # escape
             self._windowManager.destroyWindow()
 
 
 if __name__ == "__main__":
-    Dector(mode='catch', people_name='1').run()
+    Dector(mode='col', people_name='1').run()
