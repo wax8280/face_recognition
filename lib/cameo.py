@@ -10,19 +10,20 @@ import numpy
 from train import load_instance
 
 DATA_PATH = r'..\data\raw'
+FACE_CASCADE=r'..\data\cascades\haarcascade_frontalface_default.xml'
 
 
 class CaptureManager(object):
-    def __init__(self, capture, previewWindowManager=None, shouldMirrorPreview=False):
+    def __init__(self, capture, preview_window_manager=None, should_mirror_preview=False):
         """
-        :param capture:                                         a cv2.VideoCapture object
-        :param previewWindowManager:        WindowManager       the windows
-        :param shouldMirrorPreview:         Bool                is reversal the frame?
+        :param capture:                                           a cv2.VideoCapture object
+        :param preview_window_manager:        WindowManager       the windows
+        :param should_mirror_preview:         Bool                is reversal the frame?
         :return:
         """
-        self.previewWindowManager = previewWindowManager
-        # 镜像旋转（在窗口中问不是在文件中），bool
-        self.shouldMirrorPreview = shouldMirrorPreview
+        self.previewWindowManager = preview_window_manager
+        # mirror preview(not in file,just preview)
+        self.shouldMirrorPreview = should_mirror_preview
         self._capture = capture
         self._enteredFrame = False
         self._frame = None
@@ -51,7 +52,7 @@ class CaptureManager(object):
     def capture(self, callback=None):
 
         if self._enteredFrame and self._frame is None:
-            if callback != None:
+            if callback is not None:
                 _, frame = self._capture.retrieve()
                 self._frame = callback(frame)
             else:
@@ -61,8 +62,8 @@ class CaptureManager(object):
         if self._framesElapsed == 0:
             self._startTime = time.time()
         else:
-            timeElapsed = time.time() - self._startTime
-            self._fpsEstimate = self._framesElapsed / timeElapsed
+            time_elapsed = time.time() - self._startTime
+            self._fpsEstimate = self._framesElapsed / time_elapsed
         self._framesElapsed += 1
 
         return self._frame
@@ -70,34 +71,34 @@ class CaptureManager(object):
     def draw_windows(self):
         if self.previewWindowManager is not None:
             if self.shouldMirrorPreview:
-                mirroredFrame = numpy.fliplr(self._frame).copy()
-                self.previewWindowManager.show(mirroredFrame)
+                mirrored_frame = numpy.fliplr(self._frame).copy()
+                self.previewWindowManager.show(mirrored_frame)
             else:
                 self.previewWindowManager.show(self._frame)
 
 
 class WindowManager(object):
-    def __init__(self, windowName, keypressCallback=None):
-        self.keypressCallback = keypressCallback
-        self._windowName = windowName
+    def __init__(self, window_name, keypress_callback=None):
+        self.keypressCallback = keypress_callback
+        self._windowName = window_name
         self._isWindowCreated = False
 
     @property
-    def isWindowCreated(self):
+    def is_window_created(self):
         return self._isWindowCreated
 
-    def createWindow(self):
+    def create_window(self):
         cv2.namedWindow(self._windowName)
         self._isWindowCreated = True
 
     def show(self, frame):
         cv2.imshow(self._windowName, frame)
 
-    def destroyWindow(self):
+    def destroy_window(self):
         cv2.destroyWindow(self._windowName)
         self._isWindowCreated = False
 
-    def processEvents(self):
+    def process_events(self):
         keycode = cv2.waitKey(1)
         if self.keypressCallback is not None and keycode != -1:
             keycode &= 0xFF
@@ -105,13 +106,13 @@ class WindowManager(object):
 
 
 class Dector(object):
-    face_cascade = cv2.CascadeClassifier('../data/cascades/haarcascade_frontalface_default.xml')
-    eye_cascade = cv2.CascadeClassifier('../data/cascades/haarcascade_eye.xml')
+    face_cascade = cv2.CascadeClassifier(FACE_CASCADE)
 
     def __init__(self, mode, people_name=None):
-        self._windowManager = WindowManager('Cameo', self.onKeypress)
+        self._windowManager = WindowManager('Cameo', self.on_keypress)
         self._captureManager = CaptureManager(cv2.VideoCapture(1), self._windowManager, True)
         self._ef = load_instance()
+
         self._predict_result = []
         self._mode = mode
         self.count_to_print = 10
@@ -152,37 +153,36 @@ class Dector(object):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = Dector.face_cascade.detectMultiScale(gray, 1.3, 5)
         for (x, y, w, h) in faces:
-            img = cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            # img = cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
             f = cv2.resize(gray[y:y + h, x:x + w], (200, 200))
 
             if mode == 'rec':
                 self._predict_result.append(self.face_recoginze(f))
             elif mode == 'col':
-                PATH_ = os.path.join(os.path.join(DATA_PATH, self._people_name), '%s.pgm' % str(time.time()))
-                print PATH_
-                cv2.imwrite(PATH_, f)
+                path_ = os.path.join(os.path.join(DATA_PATH, self._people_name), '%s.pgm' % str(time.time()))
+                cv2.imwrite(path_, f)
         return frame
 
     def run(self):
         """begin loop"""
-        self._windowManager.createWindow()
+        self._windowManager.create_window()
         particle_face_detect = partial(self.face_solution, mode=self._mode)
 
-        while self._windowManager.isWindowCreated:
+        while self._windowManager.is_window_created:
             with self._captureManager:
                 self._captureManager.capture(callback=particle_face_detect)
                 self._captureManager.draw_windows()
-            self._windowManager.processEvents()
+            self._windowManager.process_events()
 
             self.print_result()
 
-    def onKeypress(self, keycode):
+    def on_keypress(self, keycode):
         """
         handle pressed key
         escape -> exit
         """
         if keycode == 27:  # escape
-            self._windowManager.destroyWindow()
+            self._windowManager.destroy_window()
 
 
 if __name__ == "__main__":

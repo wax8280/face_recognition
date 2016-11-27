@@ -1,6 +1,7 @@
 # coding:utf-8
 import cPickle
 import time
+import os
 from functools import wraps
 
 import PIL.Image as Image
@@ -46,7 +47,7 @@ class Eigenfaces(object):
         self.eig_vect = 0
         self.mu = 0
         self.projections = []
-        self.dist_metric = self.distEclud
+        self.dist_metric = self.dist_eclud
 
     @log_wrapper('Start loading image...')
     def loadimags(self, path):
@@ -55,7 +56,6 @@ class Eigenfaces(object):
         :param path:            string          the path of source images
         :return:
         """
-        classlabel = 0
         for dirname, dirnames, filenames in os.walk(path):
             for subdirname in dirnames:
                 sub_path = os.path.join(dirname, subdirname)
@@ -65,23 +65,22 @@ class Eigenfaces(object):
                         im = Image.open(os.path.join(sub_path, filename))
                         im = im.convert("L")
                         self.X.append(np.asarray(im, dtype=np.uint8))
-                        self.y.append(classlabel)
+                        self.y.append(subdirname)
                         count += 1
                     break
-                classlabel += 1
 
-    def genRowMatrix(self):
+    def gen_row_matrix(self):
         self.Mat = np.empty((0, self.X[0].size), dtype=self.X[0].dtype)
         for row in self.X:
             self.Mat = np.vstack((self.Mat, np.asarray(row).reshape(1, -1)))
 
-    def PCA(self, k=DIMENSION):
+    def pca(self, k=DIMENSION):
         """
         thr PCA algorithm
         :param k:               int       the aim dimension to reduce
         :return:
         """
-        self.genRowMatrix()
+        self.gen_row_matrix()
         [n, d] = shape(self.Mat)
         if k > n:
             k = n
@@ -104,14 +103,14 @@ class Eigenfaces(object):
 
     @log_wrapper('Start Compute...')
     def compute(self):
-        self.PCA()
+        self.pca()
         for xi in self.X:
             self.projections.append(self.project(xi.reshape(1, -1)))
 
-    def distEclud(self, vecA, vecB):
+    def dist_eclud(self, vecA, vecB):
         return linalg.norm(vecA - vecB) + self.eps
 
-    def cosSim(self, vecA, vecB):
+    def cos_sim(self, vecA, vecB):
         return (dot(vecA, vecB.T) / ((linalg.norm(vecA) * linalg.norm(vecB)) + self.eps))[0, 0]
 
     def project(self, XI):
@@ -119,7 +118,8 @@ class Eigenfaces(object):
             return np.dot(XI, self.eig_vect)
         return np.dot(XI - self.mu, self.eig_vect)
 
-    def subplot(self, title, images):
+    @staticmethod
+    def subplot(title, images):
         fig = plt.figure()
         fig.text(.5, .95, title, horizontalalignment='center')
         for i in xrange(len(images)):
@@ -144,7 +144,7 @@ class Eigenfaces(object):
         return minClass
 
 
-@log_wrapper('Start dump...')
+@log_wrapper('Start dumping...')
 def save_instance(instance, path=r"..\data\trained"):
     """
     to dump the result
@@ -158,6 +158,7 @@ def save_instance(instance, path=r"..\data\trained"):
     cPickle.dump(instance.y, open(os.path.join(path, 'y.plk'), "wb"))
 
 
+@log_wrapper('Start loading...')
 def load_instance(path=r"..\data\trained"):
     """
     to load the result
