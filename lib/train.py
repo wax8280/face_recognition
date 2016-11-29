@@ -11,7 +11,7 @@ from numpy import *
 
 DIMENSION = 40
 DATA_PATH = '..\\data\\raw\\'
-EACH_PIC_OF_SOURCE = 150
+EACH_PIC_OF_SOURCE = 60
 
 
 def log_wrapper(content):
@@ -67,7 +67,8 @@ class Eigenfaces(object):
                         self.X.append(np.asarray(im, dtype=np.uint8))
                         self.y.append(subdirname)
                         count += 1
-                    break
+                    else:
+                        break
 
     def gen_row_matrix(self):
         self.Mat = np.empty((0, self.X[0].size), dtype=self.X[0].dtype)

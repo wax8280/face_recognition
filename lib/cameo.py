@@ -153,9 +153,8 @@ class Dector(object):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = Dector.face_cascade.detectMultiScale(gray, 1.3, 5)
         for (x, y, w, h) in faces:
-            # img = cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            img = cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
             f = cv2.resize(gray[y:y + h, x:x + w], (200, 200))
-
             if mode == 'rec':
                 self._predict_result.append(self.face_recoginze(f))
             elif mode == 'col':
@@ -186,4 +185,4 @@ class Dector(object):
 
 
 if __name__ == "__main__":
-    Dector(mode='col', people_name='1').run()
+    Dector(mode='rec', people_name='Teacher').run()
